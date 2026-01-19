@@ -7,6 +7,7 @@
 \method{report}{data.frame}(
   x,
   by = NULL,
+  remove.by = FALSE,
   file = NULL,
   type = "word",
   digits = 2,
@@ -19,6 +20,8 @@
 \item{x}{A data.frame object}
 
 \item{by}{Grouping variable for the report}
+
+\item{remove.by}{Remove grouping variable from the report table?}
 
 \item{file}{Name of the file to export the table}
 

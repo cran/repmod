@@ -11,6 +11,8 @@
   digits = 3,
   info = TRUE,
   print = TRUE,
+  exclude = NULL,
+  prob = 0.95,
   ...
 )
 }
@@ -26,6 +28,10 @@
 \item{info}{If TRUE, include call in the exported table}
 
 \item{print}{Should the report table be printed on screen?}
+
+\item{exclude}{Vector with rownames to remove from output}
+
+\item{prob}{Probability level for credible intervals}
 
 \item{...}{Further arguments passed to make_table}
 }

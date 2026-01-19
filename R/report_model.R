@@ -8,22 +8,25 @@
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats confint getCall
 #' @export
-report.lm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.lm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   sx <- summary(x)
   ci <- confint(x)
   obj <- list(coefficients=setNames(sx$coefficients[,1], rownames(sx$coefficients)), se=sx$coefficients[,2], lwr.int=ci[,1],
-              upper.int=ci[,2], pvalues=sx$coefficients[,4], r.squared=sx$r.squared, adj.r.squared=sx$adj.r.squared)
+              upper.int=ci[,2], pvalues=sx$coefficients[,4], r.squared=sx$r.squared, adj.r.squared=sx$adj.r.squared, sigma=sx$sigma)
   output<-rbind(cbind(round(obj$coefficients,digits),round(obj$se,digits),
                       round(obj$lwr.int,digits),round(obj$upper.int, digits), round(obj$pvalues,digitspvals)),
                 c(round(obj$r.squared,digits+1),rep("",4)),
-                c(round(obj$adj.r.squared,digits+1),rep("",4)))
+                c(round(obj$adj.r.squared,digits+1),rep("",4)),
+                c(round(obj$sigma, digits+1), rep("", 4)))
   colnames(output)<-c('Estimate','Std. Error','Lower 95%','Upper 95%','P-value')
-  rownames(output)[c(dim(sx$coefficients)[1]+1,dim(sx$coefficients)[1]+2)]<-c('R Squared','Adj.R Squared')
+  rownames(output)[dim(sx$coefficients)[1]+c(1,2,3)]<-c('R Squared','Adj.R Squared', "Sigma")
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -44,11 +47,12 @@ report.lm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRU
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.glm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.glm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x$family$link %in% c("logit", "log")
   sx<-summary(x)
   ci<-confint(x)
@@ -71,6 +75,7 @@ report.glm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
   colnames(output)<-c('Estimate','Std. Error',if(compute.exp) {'exp(Estimate)'},'Lower 95%','Upper 95%','P-value')
   rownames(output)[dim(sx$coefficients)[1]+1]<-c('AIC')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -91,11 +96,12 @@ report.glm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats AIC getCall
 #' @export
-report.coxph<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.coxph<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   sx<-summary(x)
   obj <- list(coefficients=setNames(sx$coefficients[,1], rownames(sx$coefficients)), se=sx$coefficients[,3], hr=sx$conf.int[,1],
               lwr.int=sx$conf.int[,3], upper.int=sx$conf.int[,4], pvalues=sx$coefficients[,5], aic=AIC(x))
@@ -105,6 +111,7 @@ report.coxph<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=
   colnames(output)<-c('Estimate','Std. Error','HR','Lower 95%','Upper 95%','P-value')
   rownames(output)[dim(output)[1]]<-c('AIC')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -125,12 +132,13 @@ report.coxph<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @importFrom methods loadMethod
 #' @export
-report.merModLmerTest<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.merModLmerTest<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   #loadNamespace("lmerTest")
   loadMethod("summary", "summary.lmerModLmerTest", envir="lmerTest")
   sx <- summary(x)
@@ -153,6 +161,7 @@ report.merModLmerTest<-function(x, file=NULL, type="word", digits=3, digitspvals
                                                 na.omit(cor[is.na(cor$var2), c(1)]),
                                                 c(na.omit(cor[is.na(cor$var2), c(2)]), ""),sep='')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -173,11 +182,12 @@ report.merModLmerTest<-function(x, file=NULL, type="word", digits=3, digitspvals
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.lmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.lmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   x<-lmerTest::lmer(x@call,data=x@frame)
   report.merModLmerTest(x, file, type, digits, digitspvals, info=info, ...)
 }
@@ -192,11 +202,12 @@ report.lmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, inf
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.glmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.glmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x@resp$family$link %in% c("logit", "log")
   sx<-summary(x)
   cor<-as.data.frame(lme4::VarCorr(x))
@@ -227,6 +238,7 @@ report.glmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, in
                                                 na.omit(cor[is.na(cor$var2), c(1)]),
                                                 na.omit(cor[is.na(cor$var2), c(2)]),sep='')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -248,11 +260,12 @@ report.glmerMod<-function(x, file=NULL, type="word", digits=3, digitspvals=3, in
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.lqmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.lqmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   sx<-summary(x, ...)
   obj<-list(coefficients=setNames(sx$tTable[,1], rownames(sx$tTable)), se=sx$tTable[,2], lwr.int=sx$tTable[,3], upper.int=sx$tTable[,4],
             pvalues=sx$tTable[,5], aic=sx$aic, random=round(VarCorr(x),2))
@@ -264,6 +277,7 @@ report.lqmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=T
   rownames(output)[dim(sx$tTable)[1]+1]<-c('AIC')
   rownames(output)[(dim(sx$tTable)[1]+2):(((dim(sx$tTable)[1]+2)+length(obj$random))-1)]<-paste('Ran.Eff',names(VarCorr(x)),sep=' ')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -285,11 +299,12 @@ report.lqmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=T
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.clm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.clm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x$link %in% c("logit", "log")
   sx<-summary(x)
   ci<-confint(x)
@@ -312,6 +327,7 @@ report.clm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
   colnames(output)<-c('Estimate','Std. Error',if(compute.exp) 'exp(Estimate)','Lower 95%','Upper 95%','P-value')
   rownames(output)[length(rownames(output))]<-c('AIC')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -332,11 +348,12 @@ report.clm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.clmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.clmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x$link %in% c("logit", "log")
   sx<-summary(x)
   ci<-confint(x)
@@ -363,6 +380,7 @@ report.clmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=T
   rownames(output)[length(x$beta)+1]<-c('AIC')
   rownames(output)[rownames(output)==""]<-names(rapply(VarCorr(x), function(x) sqrt(diag(x))))
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -384,11 +402,12 @@ report.clmm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=T
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.rq<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.rq<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   sx<-summary(x, se="rank")
   sx2<-summary(x, covariance=TRUE)
   obj<-list(coefficients=setNames(sx$coefficients[,1], rownames(sx$coefficients)), se=sx2$coefficients[,2], lwr.int=sx$coefficients[,2],
@@ -400,6 +419,7 @@ report.rq<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRU
   colnames(output)<-c('Estimate','Std. Error','Lower 95%','Upper 95%','P-value')
   rownames(output)[dim(sx$coefficients)[1]+1]<-'AIC'
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -421,11 +441,12 @@ report.rq<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRU
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x$link$mean$name %in% c("logit", "log")
   sx<-summary(x)
   ci<-confint(x)
@@ -449,6 +470,7 @@ report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3, inf
   colnames(output)<-c('Estimate','Std. Error',if(compute.exp) 'exp(Estimate)', 'Lower 95%','Upper 95%','P-value')
   rownames(output)[c(dim(sx$coefficients$mean)[1]+1, dim(sx$coefficients$mean)[1]+2)]<-c("phi", "Pseudo R-squared")
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -468,18 +490,22 @@ report.betareg<-function(x, file=NULL, type="word", digits=3, digitspvals=3, inf
 #' @param digits Number of decimals
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
+#' @param prob Probability level for credible intervals
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
+#' @importFrom bayestestR pd
 #' @export
-report.brmsfit<-function(x, file=NULL, type="word", digits=3, info=TRUE, print=TRUE, ...){
+report.brmsfit <- function(x, file=NULL, type="word", digits=3, info=TRUE, print=TRUE, exclude=NULL, prob=0.95, ...){
   compute.exp<-x$family$link %in% c("logit", "log")
-  sx<-summary(x)
+  sx<-summary(x, prob=prob)
   WC<-eval(parse(text="brms::WAIC(x)"))
   random<-tryCatch(do.call(rbind, sx$random), error=function(e) NA)
-  if(!any(is.na(random))) rownames(random)<-paste(rownames(random),rep(names(sx$random), sapply(sx$random, nrow)), sep=" ")
+  pd <- bayestestR::pd(x)
+  #if(!any(is.na(random))) rownames(random)<-paste(rownames(random),rep(names(sx$random), sapply(sx$random, nrow)), sep=" ")
   obj<-list(coefficients=setNames(sx$fixed[,1], rownames(sx$fixed)), se=sx$fixed[,2], lwr.int=sx$fixed[,3],
-            upper.int=sx$fixed[,4], random=random, WAIC=setNames(c(WC$estimates[3,1], WC$estimates[3,2]), c("WAIC", "WAIC SE")), Eff.Sample_min=min(c(sx$fixed[,6], sx$fixed[,7])), Rhat_max=round(max(sx$fixed[,5]),2))
+            upper.int=sx$fixed[,4], pd=pd$pd, random=random, WAIC=setNames(c(WC$estimates[3,1], WC$estimates[3,2]), c("WAIC", "WAIC SE")), Eff.Sample_min=min(c(sx$fixed[,6], sx$fixed[,7])), Rhat_max=round(max(sx$fixed[,5]),2))
   if(compute.exp){
     obj$exp.coef <- exp(obj$coefficients)
     obj$exp.lwr.int <- exp(obj$lwr.int)
@@ -491,10 +517,17 @@ report.brmsfit<-function(x, file=NULL, type="word", digits=3, info=TRUE, print=T
                               round(obj$exp.upper.int, digits))
                       } else{
                         cbind(round(obj$lwr.int,digits), round(obj$upper.int, digits))
-                      }), if(!any(is.na(random))) {cbind(round(random[,1:2, drop=FALSE], digits), if(compute.exp) "-", round(random[,3:4, drop=FALSE], digits))},
-                c(round(WC$estimates[3,1], digits), round(WC$estimates[3,2], digits), rep("", ifelse(compute.exp, 3, 2))))
+                      }, round(pd$pd, digits)), if(!any(is.na(random))) {
+                        if(compute.exp){
+                          as.matrix(cbind(round(random[,1:2, drop=FALSE], digits), "-", round(random[,3:4, drop=FALSE], digits), ""))
+                        } else {
+                          as.matrix(cbind(round(random[,1:2, drop=FALSE], digits), round(random[,3:4, drop=FALSE], digits), ""))
+                        }
+                      },
+                c(round(WC$estimates[3,1], digits), round(WC$estimates[3,2], digits), rep("", ifelse(compute.exp, 3, 2)), ""))
   rownames(output)[dim(output)[1]]<-"WAIC"
-  colnames(output)<-c('Estimate','Std. Error',if(compute.exp) 'exp(Estimate)', 'Lower 95%','Upper 95%')
+  colnames(output)<-c('Estimate','Std. Error',if(compute.exp) 'exp(Estimate)', paste('Lower ', round(prob*100), '%', sep=""),paste('Upper ', round(prob*100), '%', sep=""), "pd")
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     suppressWarnings(make_table(output, file, type, info=info, ...))
@@ -519,11 +552,12 @@ report.brmsfit<-function(x, file=NULL, type="word", digits=3, info=TRUE, print=T
 #' @param digits Number of decimals
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats coef getCall
 #' @export
-report.glmnet<-function(x, s, gamma=1, drop.zero=TRUE, file=NULL, type="word", digits=3, info=TRUE, print=TRUE, ...){
+report.glmnet<-function(x, s, gamma=1, drop.zero=TRUE, file=NULL, type="word", digits=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<- any(grepl("binomial|cox", x$call))
   if("relaxed" %in% class(x)){
     coefs <- coef(x, s=s, gamma=gamma)
@@ -552,6 +586,7 @@ report.glmnet<-function(x, s, gamma=1, drop.zero=TRUE, file=NULL, type="word", d
     colnames(output)<-c('Estimate', if(compute.exp) 'exp(Estimate)')
     rownames(output)<-c(names(obj$coefficients), "lambda")
   }
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -573,11 +608,12 @@ report.glmnet<-function(x, s, gamma=1, drop.zero=TRUE, file=NULL, type="word", d
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.rlm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.rlm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   sx <- summary(x, method = "XtWX")
   ci <- rob.ci(x, ...)
   obj <- list(coefficients=setNames(sx$coefficients[,1], rownames(sx$coefficients)), se=sx$coefficients[,2], lwr.int=ci[,1],
@@ -588,6 +624,7 @@ report.rlm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
   colnames(output)<-c('Estimate','Std. Error','Lower 95%','Upper 95%','P-value')
   rownames(output)[dim(sx$coefficients)[1]+1]<-'AIC'
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -609,11 +646,12 @@ report.rlm<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TR
 #' @param digitspvals Number of decimals for p-values
 #' @param info If TRUE, include call in the exported table
 #' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
 #' @param ... Further arguments passed to make_table
 #' @return A data frame with the report table
 #' @importFrom stats getCall
 #' @export
-report.glmmadmb<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, ...){
+report.glmmadmb<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
   compute.exp<-x$link %in% c("logit", "log")
   sx<-summary(x)
   cor<-sqrt(cbind(unlist(lapply(x$S, function(x) diag(x)))))
@@ -643,6 +681,50 @@ report.glmmadmb<-function(x, file=NULL, type="word", digits=3, digitspvals=3, in
   rownames(output)[rownames(output)==""]<-paste(rep('Sd ',dim(cor)[1]),
                                                 rownames(cor),sep='')
   output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
+  if(!is.null(file)){
+    info <- if(info) deparse1(getCall(x)) else NULL
+    make_table(output, file, type, info=info, ...)
+  }
+  obj$output <- data.frame(output, check.names=FALSE, stringsAsFactors=FALSE)
+  if(print) print(obj$output, row.names=TRUE, right=TRUE)
+  class(obj) <- "reportmodel"
+  invisible(obj)
+}
+
+#' Report from generalized least squares model
+#'
+#' @description Creates a report table from a generalized least squares model.
+#' @param x A gls object
+#' @param file Name of the file to export the table
+#' @param type Format of the file
+#' @param digits Number of decimals
+#' @param digitspvals Number of decimals for p-values
+#' @param info If TRUE, include call in the exported table
+#' @param print Should the report table be printed on screen?
+#' @param exclude Vector with rownames to remove from output
+#' @param ... Further arguments passed to make_table
+#' @return A data frame with the report table
+#' @importFrom stats confint getCall
+#' @export
+report.gls<-function(x, file=NULL, type="word", digits=3, digitspvals=3, info=TRUE, print=TRUE, exclude=NULL, ...){
+  sx <- summary(x)
+  ci <- confint(x)
+  obj <- list(coefficients=setNames(sx$tTable[,1], rownames(sx$tTable)), se=sx$tTable[,2], lwr.int=ci[,1],
+              upper.int=ci[,2], pvalues=sx$tTable[,4], corStruct=coef(sx$modelStruct$corStruct, unconstrained = FALSE),
+              varStruct=coef(sx$modelStruct$varStruct, unconstrained = FALSE), aic=sx$AIC, sigma=sx$sigma)
+  output<-rbind(cbind(round(obj$coefficients,digits),round(obj$se,digits),
+                      round(obj$lwr.int,digits),round(obj$upper.int, digits), round(obj$pvalues,digitspvals)),
+                if(!is.null(sx$modelStruct$corStruct)) matrix(c(round(coef(sx$modelStruct$corStruct, unconstrained = FALSE), digits), rep("", 4*length(coef(sx$modelStruct$corStruct, unconstrained = FALSE)))), ncol=5),
+                if(!is.null(sx$modelStruct$varStruc)) matrix(c(round(coef(sx$modelStruct$varStruct, unconstrained = FALSE), digits), rep("", 4*length(coef(sx$modelStruct$varStruct, unconstrained = FALSE)))), ncol=5),
+                c(round(obj$aic, digits),rep("", 4)),
+                c(round(obj$sigma, digits), rep("", 4)))
+  colnames(output)<-c('Estimate','Std. Error','Lower 95%','Upper 95%','P-value')
+  rownames(output)[-(1:dim(sx$tTable)[1])] <- c(if(!is.null(sx$modelStruct$corStruct)) names(coef(sx$modelStruct$corStruct, unconstrained = FALSE)),
+                                                if(!is.null(sx$modelStruct$varStruct)) names(coef(sx$modelStruct$varStruct, unconstrained = FALSE)),
+                                                'AIC', "Sigma")
+  output[,"P-value"][output[,"P-value"]=="0"]<-"<0.001"
+  output <- output[!rownames(output) %in% exclude,]
   if(!is.null(file)){
     info <- if(info) deparse1(getCall(x)) else NULL
     make_table(output, file, type, info=info, ...)
@@ -846,6 +928,7 @@ report.factor<-function(x,...){
 #' @description Creates a report table ready for publication.
 #' @param x A data.frame object
 #' @param by Grouping variable for the report
+#' @param remove.by Remove grouping variable from the report table?
 #' @param file Name of the file to export the table
 #' @param type Format of the file
 #' @param digits Number of decimal places
@@ -858,87 +941,68 @@ report.factor<-function(x,...){
 #' report(iris)
 #' (reporTable<-report(iris, by="Species"))
 #' class(reporTable)
-report.data.frame<-function(x, by=NULL, file=NULL, type="word", digits=2, digitscat=digits, print=TRUE, ...){
-  if(is.data.frame(x)==F){
-    x<-data.frame(x)}
-  x<-x[,!sapply(x, function(x) sum(is.na(x))/length(x))==1 & sapply(x, function(x) is.numeric(x) | is.factor(x)), drop=FALSE]
-  if(ncol(x) == 0) stop("Data frame has no numeric or factor variables to describe")
-  x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))]<-lapply(x[sapply(x, is.factor) & sapply(x, function(x) !all(levels(x) %in% unique(na.omit(x))))], factor)
-  if(length(by)>1){
-    x.int <- data.frame(x, by=interaction(x[, match(unlist(by), names(x))]))
-    report(x.int[,-match(unlist(by), names(x.int))], by="by", file=file, type=type, digits=digits, digitscat=digitscat, ...)
+report.data.frame <- function(x, by=NULL, remove.by=FALSE, file=NULL, type="word", digits=2, digitscat=digits, print=TRUE, ...){
+  mtapply <- function(x, group, fun, simplify=TRUE){
+    if(is.null(dim(x))) tapply(x, group, fun)
+    else sapply(split(x, group, drop=TRUE), function(x) sapply(x, function(x) fun(x)), simplify = simplify)
   }
-  else{
-    by_v <- factor(rep("", nrow(x)))
-    if(!is.null(by)){
-      pos_by<-match(by, names(x))
-      by_v<-factor(eval(parse(text=paste("x$", by, sep=""))))
-      x<-x[,-pos_by, drop=FALSE]
-    }
-
-    #Numeric part
-    nums <- sapply(x, is.numeric)
-    if(any(nums==TRUE)){
-      estruct<-matrix(nrow=2, ncol=length(unique(na.omit(by_v)))+1)
-      estruct[1:2,1]<-c("", "")
-      estruct[1, -1]<-paste("Mean (SD)", ifelse(any(nums==FALSE), " / n(%)", ""), sep="")
-      estruct[2,-1]<-"Median (1st, 3rd Q.)"
-      cont<-character(2*length(x[nums==T]))
-      cont[seq(1,length(cont), 2)]<-colnames(x[,nums==T, drop=FALSE])
-      if(ncol(x[,nums==T, drop=FALSE])>1){
-        A<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
-                       sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep("", 3))
-
-        B<-matrixPaste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
-                       " (",
-                       sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
-                       ", ",
-                       sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
-                       ")", sep=rep("", 5))
-      }
-      else {
-        A<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(mean(x, na.rm=TRUE),digits)))), function(x) t(x)), " (",
-                 sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(sd(x, na.rm=TRUE),digits)))), function(x) t(x)),")", sep=rep(""))
-        B<-paste(sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(median(x, na.rm=TRUE),digits)))), function(x) t(x)),
-                 " (",
-                 sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.25, na.rm=TRUE),digits)))), function(x) t(x)),
-                 ", ",
-                 sapply(by(x, by_v, function(x) sapply(x[nums==T],function(x) as.character(round(quantile(x, 0.75, na.rm=TRUE),digits)))), function(x) t(x)),
-                 ")", sep=rep(""))
-      }
-
-      AB<-matrix(nrow=nrow(rbind(A, B)), ncol=ncol(rbind(A,B))+1)
-      AB[seq(1, dim(rbind(A, B))[1], 2),-1]<-A
-      AB[-c(seq(1, dim(rbind(A, B))[1], 2)),-1]<-B
-      AB[,1]<-cont
-    }
-    else{
-      AB<-NULL
-      estruct<-matrix(nrow=1, ncol=length(unique(na.omit(by_v)))+1)
-      estruct[1,1]<-""
-      estruct[1, -1]<-"n (%)"
-    }
-
+  if(!is.data.frame(x)){
+    x <- data.frame(x)
+  }
+  if(is.null(by)) group <- factor(rep(1, nrow(x))) else group <- x[,by]
+  if(remove.by) x <- x[,!names(x) %in% by, drop=FALSE]
+  numeric_part <- x[, sapply(x, is.numeric), drop=FALSE]
+  cat_part <- x[, sapply(x, is.factor), drop=FALSE]
+  if(ncol(numeric_part)+ncol(cat_part) == 0) stop("No numeric or factor variables to describe. Please check that 'character' variables have been defined as 'factor'.")
+  if(ncol(numeric_part)>0){
+    #Numerical part
+    num_res <- mtapply(numeric_part, group=droplevels(group), function(x) numeric_summary(x, digits=digits))
+    format_num <- data.frame(Variable="", num_res)
+    format_num[ ,1] <- unlist(lapply(names(numeric_part), function(x) c(paste(x, " (n)", sep=""), "  mean (sd)", "  median (q1, q3)")))
+  } else format_num <- NULL
+  if(ncol(cat_part)>0){
     #Categorical part
-    cats<-matrix(data="", ncol=length(levels(by_v))+1, nrow=suppressWarnings(length(na.omit(unlist(sapply(x[nums==F], function(x) na.omit(unique(x)))))))+length(x[nums==F]))
-    pos<-sapply(sapply(x[nums==F], function(x) na.omit(unique(x)), simplify=FALSE), function(x) length(x))
-    cats[rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1]),1]<-colnames(x[nums==F])
-    cats[-(rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1])),1]<-paste("  ", suppressWarnings(na.omit(unlist(sapply(x[nums==F], function(x) levels(as.factor(x)))))), sep="")
-    if(any(nums==FALSE)){
-      x[nums==F] <- lapply(x[nums==F],as.factor)
-      C<-matrixPaste(sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(table(x)))), function(x) unlist(x)), " (",
-                     sapply(by(x[nums==F], by_v, function(x) sapply(x, function(x) as.character(round(100*(table(x)/sum(table(x))),digitscat)))), function(x) unlist(x)),"%)", sep=rep("", 3))
-      cats[-(rev(rev(cumsum(c(1,pos)))[-1])+rev(rev((0:(dim(x[nums==F])[2])))[-1])),-1]<-C
-    }
-
-    #Matrix binding
-    output<-rbind(estruct, AB, cats)
-    colnames(output)<-c("Variable", paste(by, levels(by_v), sep=" ", "n =", as.vector(table(by_v))))
-    if(!is.null(file)) make_table(output, file, type, use.rownames=FALSE)
-    output <- data.frame(output, check.names=FALSE, stringsAsFactors=FALSE)
-    if(print) print(output, row.names=FALSE, right=FALSE)
-    invisible(output)
+    cat_res <- matrix(unlist(mtapply(cat_part, group=droplevels(group), function(x) cat_summary(x, digits=digits), simplify=FALSE)), ncol=length(levels(interaction(group, drop=TRUE))))
+    format_cat <- data.frame(Variable="", cat_res)
+    format_cat[,1] <- unlist(lapply(names(cat_part), function(y) c(paste(y, " (n)", sep=""), paste("  ", levels(x[,y]), sep=""))))
+    names(format_cat) <- make.names(c("Variable", levels(interaction(group, drop=TRUE))))
+  } else format_cat <- NULL
+  #Merge parts
+  result <- rbind(format_num, format_cat)
+  names(result) <- c(names(result)[1], paste(names(result)[-1], " (n = ", table(interaction(group, drop=TRUE)), ")", sep=""))
+  if(!is.null(file)) make_table(result, file, type, use.rownames=FALSE)
+  if(print){
+    print(format(result, justify="left"), row.names=FALSE)
+  } else{
+    invisible(format(result, justify="left"))
   }
+}
+
+#' Auxiliary functions for report.data.frame
+#' @description Internal function for numerical summary
+#' @param x A vector of class numeric
+#' @param digits Number of digits for rounding
+#' @return Returns a summary of a numerical variable
+numeric_summary <- function(x, digits){
+  mean_sd <- function(x, digits){
+    paste(round(mean(x, na.rm=TRUE), digits = digits), " (", round(sd(x, na.rm=TRUE), digits=digits), ")", sep="")
+  }
+  median_qq <- function(x, digits){
+    paste(round(median(x, na.rm=TRUE), digits = digits), " (", paste(round(quantile(x, probs=c(0.25, 0.75), na.rm=TRUE), digits), collapse=", "), ")", sep="")
+  }
+  nsize <- function(x){
+    sum(!is.na(x))
+  }
+  rbind(nsize(x), mean_sd(x, digits), median_qq(x, digits))
+}
+
+#' Auxiliary functions for report.data.frame
+#' @description Internal function for categorical summary
+#' @param x A vector of class character
+#' @param digits Number of digits for rounding
+#' @return Returns a summary of a categorical variable
+cat_summary <- function(x, digits){
+  c(sum(!is.na(x)), paste(table(x), " (", round(100*table(x)/sum(table(x)), digits), " %)", sep=""))
 }
 
 #' Auxiliary matrix paste function
@@ -1023,4 +1087,143 @@ coefplot <- function(coefs, lwr.int=coefs, upper.int=coefs, offset=0, coefnames=
 #' par(mar=oldpar$mar)
 plot.reportmodel<-function(x, ...){
   coefplot(x$coefficients, x$lwr.int, x$upper.int, ...)
+}
+
+#' K-fold cross-validation for models
+#'
+#' @description Returns cross-validated absolute fit values
+#' @param formula An object of class "formula" describing the model to be validated
+#' @param data A data frame containing the variables specified in formula argument
+#' @param k Number of folds
+#' @param fit_function Name of the model fitting function
+#' @param metric Performance metric to estimate: RMSE, MSE, MAE  or AUC
+#' @param predict.control Named list of arguments to pass to the predict function of the model
+#' @param ... Further arguments passed to the model fitting function
+#' @return Cross-validated values for the selected performance metric
+#' @importFrom stats fitted predict
+#' @export
+#' @examples
+#' cv_model(Petal.Length ~ Sepal.Width + Species, data=iris)
+cv_model <- function(formula, data, k=5, fit_function="lm", metric=if(length(unique(data[,as.character(formula)[2]])) == 2) "AUC" else "RMSE", predict.control=list(NULL), ...){
+  n <- nrow(data)
+  fragmentos <- sample(1:k, n, replace=TRUE)
+  sapply(1:k, function(x){
+    mod_k <- get(fit_function)(formula, data=data[fragmentos != x,], ...)
+    args <- append(list(object=mod_k, newdata = data[fragmentos == x,]), predict.control)
+    if(fit_function == "brm"){
+      prediccion_k <- do.call(fitted, args[!sapply(args, is.null)])
+      get(metric)(prediccion_k[,1], data[,as.character(formula)[2]][fragmentos == x])
+    } else{
+      prediccion_k <- do.call(predict, args[!sapply(args, is.null)])
+      get(metric)(prediccion_k, data[,as.character(formula)[2]][fragmentos == x])
+    }
+  })
+}
+
+#' Bootstrap optimism correction for models
+#'
+#' @description Returns optimism correction for absolute fit values
+#' @param formula An object of class "formula" describing the model to be validated
+#' @param data A data frame containing the variables specified in formula argument
+#' @param B Number of bootstrap samples
+#' @param fit_function Name of the model fitting function
+#' @param metric Performance metric to estimate: RMSE, MSE, MAE  or AUC
+#' @param predict.control Named list of arguments to pass to the predict function of the model
+#' @param ... Further arguments passed to the model fitting function
+#' @return Optimism correction values for the selected performance metric
+#' @importFrom stats fitted predict
+#' @export
+#' @examples
+#' boot_model(Petal.Length ~ Sepal.Width + Species, data=iris)
+boot_model <- function(formula, data, B=200, fit_function="lm", metric=if(length(unique(data[,as.character(formula)[2]])) == 2) "AUC" else "RMSE", predict.control=list(NULL), ...){
+  apparent_fit <- get(fit_function)(formula, data=data, ...)
+  args_app <- append(list(object=apparent_fit, newdata = data), predict.control)
+  prediction_app <- do.call(fitted, args_app[!sapply(args_app, is.null)])
+  apparent_metric <- get(metric)(prediction_app, data[,as.character(formula)[2]])
+  boot_samples <- replicate(B, data[sample(1:nrow(data), replace=TRUE), ], simplify = FALSE)
+  boot_results <- do.call(rbind, lapply(boot_samples, function(x){
+    mod_k <- get(fit_function)(formula, data=x, ...)
+    args_boot <- append(list(object=mod_k, newdata = x), predict.control)
+    args_orig <- append(list(object=mod_k, newdata = data), predict.control)
+    if(fit_function == "brm"){
+      prediccion_k_boot <- do.call(fitted, args_boot[!sapply(args_boot, is.null)])
+      metric_boot <- get(metric)(prediccion_k_boot[,1], x[,as.character(formula)[2]])
+      prediccion_k_orig <- do.call(fitted, args_orig[!sapply(args_orig, is.null)])
+      metric_orig <- get(metric)(prediccion_k_orig[,1], data[,as.character(formula)[2]])
+    } else{
+      prediccion_k_boot <- do.call(predict, args_boot[!sapply(args_boot, is.null)])
+      metric_boot <- get(metric)(prediccion_k_boot, x[,as.character(formula)[2]])
+      prediccion_k_orig <- do.call(predict, args_orig[!sapply(args_orig, is.null)])
+      metric_orig <- get(metric)(prediccion_k_orig, data[,as.character(formula)[2]])
+    }
+    data.frame(metric_boot=metric_boot, metric_orig=metric_orig)
+  }))
+  list(apparent_fit = apparent_metric, optimism=mean(boot_results$metric_boot - boot_results$metric_orig))
+}
+
+
+#' Mean squared error
+#'
+#' @description Estimates mean squared error from predicted and observed values
+#' @param pred Numeric vector of predicted values
+#' @param obs Numeric vector of observed values
+#' @return Returns the MSE
+#' @export
+#' @examples
+#' lm1 <- lm(Petal.Length ~ Sepal.Width + Species, data=iris)
+#' pred1 <- fitted(lm1)
+#' MSE(pred1, iris$Petal.Length)
+MSE <- function(pred, obs){
+  mean((pred-obs)^2)
+}
+
+#' Root mean squared error
+#'
+#' @description Estimates root mean squared error from predicted and observed values
+#' @param pred Numeric vector of predicted values
+#' @param obs Numeric vector of observed values
+#' @return Returns the RMSE
+#' @export
+#' @examples
+#' lm1 <- lm(Petal.Length ~ Sepal.Width + Species, data=iris)
+#' pred1 <- fitted(lm1)
+#' RMSE(pred1, iris$Petal.Length)
+RMSE <- function(pred, obs){
+  sqrt(MSE(pred, obs))
+}
+
+#' Mean absolute error
+#'
+#' @description Estimates mean absolute error from predicted and observed values
+#' @param pred Numeric vector of predicted values
+#' @param obs Numeric vector of observed values
+#' @return Returns the MAE
+#' @export
+#' @examples
+#' lm1 <- lm(Petal.Length ~ Sepal.Width + Species, data=iris)
+#' pred1 <- fitted(lm1)
+#' MAE(pred1, iris$Petal.Length)
+MAE <- function(pred, obs){
+  mean(abs(pred-obs))
+}
+
+#' ROC area under curve
+#'
+#' @description Estimates AUC from predicted and observed values
+#' @param pred Numeric vector of predicted values
+#' @param obs Numeric vector of observed values or factor with two levels
+#' @return Returns the AUC
+#' @export
+#' @examples
+#' glm1 <- glm(case ~ spontaneous + age, data=infert, family="binomial")
+#' pred1 <- fitted(glm1)
+#' AUC(pred1, infert$case)
+AUC <- function(pred, obs){
+  #Observed values
+  ns <- table(obs)
+  #Ranks in pred
+  rank_pred <- rank(pred)
+  #AUC
+  max((sum(rank_pred[obs == names(ns)[2]]) - ns[2]*(ns[2]+1)/2)/(prod(ns)),
+  (sum(rank_pred[obs == names(ns)[1]]) - ns[1]*(ns[1]+1)/2)/(prod(ns)))
 }
